@@ -1,4 +1,4 @@
-# ETW Finder — Investment Research Skills
+# Investment Research Skills
 
 Three autonomous investment research skills that crawl financial data sources and produce structured research briefs. Not financial advice.
 
@@ -86,5 +86,4 @@ market-lens/
     allocate.py
     generate_html.py
   reports/
-  package.json
 ```
