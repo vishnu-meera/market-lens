@@ -19,7 +19,7 @@ Three autonomous investment research skills that crawl financial data sources an
 **Via skillpm (recommended)**
 
 ```bash
-npx skillpm install @paradox/etw-finder-skills
+npx skillpm install market-lens
 ```
 
 **Manual symlink**
@@ -57,13 +57,34 @@ Reports land in `reports/` as a styled HTML dashboard and a raw JSON file.
 ## Directory layout
 
 ```
-etw_finder/
+market-lens/
   skills/
-    invest-momentum/   SKILL.md + agents/
-    invest-balanced/   SKILL.md + agents/
-    invest-contrarian/ SKILL.md + agents/
+    invest-momentum/
+      SKILL.md
+      agents/
+        scout-reddit.md
+        scout-stocktwits.md
+        scout-finviz.md
+        scout-etfflows.md
+        analyst.md
+    invest-balanced/
+      SKILL.md
+      agents/
+        scout-reddit.md
+        scout-etfdb.md
+        scout-macro.md
+        analyst.md
+    invest-contrarian/
+      SKILL.md
+      agents/
+        scout-reddit.md
+        scout-insider.md
+        scout-finviz.md
+        scout-sec.md
+        analyst.md
   scripts/
     allocate.py
     generate_html.py
   reports/
+  package.json
 ```
