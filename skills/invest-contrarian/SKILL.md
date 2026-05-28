@@ -12,6 +12,14 @@ Find under-followed, fundamentally interesting ideas that retail and institution
 
 ---
 
+## Paths (resolve before running)
+
+- **SKILL_DIR** — directory containing this SKILL.md file
+- **SCRIPTS_DIR** — `<SKILL_DIR>/../../scripts` (shared Python helpers: `allocate.py`, `generate_html.py`)
+- **REPORTS_DIR** — `<SKILL_DIR>/../../reports` (output folder)
+
+---
+
 ## How to run
 
 ### 1. Parse the dollar amount
@@ -20,9 +28,11 @@ Look for a number or `$X` in the user's message. If absent, ask once: "How much 
 
 ### 2. Wave 1 — spawn 4 scout sub-agents IN PARALLEL
 
-Single message, four Agent tool calls, `subagent_type: "general-purpose"`. Each prompt:
+Dispatch all 4 simultaneously — a single parallel batch, not sequential. Each agent prompt:
 
 > Read the file at `<SKILL_DIR>/agents/<SCOUT_FILE>` and execute its instructions exactly. Return only the JSON output specified in that file.
+
+*Harness note: on Claude Code use one message with 4 `Agent` tool calls (`subagent_type: "general-purpose"`); on Gemini CLI or other harnesses use the equivalent parallel mechanism.*
 
 Paths (resolve <SKILL_DIR> to the current skill directory):
 - `agents/scout-reddit.md`
@@ -47,26 +57,30 @@ On error or empty: note the source as unavailable and continue.
 
 ### 4. Wave 2 — spawn 5 analyst sub-agents IN PARALLEL
 
-Single message, five Agent tool calls. Each prompt:
+Dispatch all 5 simultaneously. Each agent prompt:
 
 > Read `<SKILL_DIR>/agents/analyst.md` and execute it against ticker `<TICKER>`. Return only the JSON object specified.
+
+*Harness note: same parallel mechanism as Wave 1.*
 
 Each returns: `{"ticker", "type", "price", "checklist": {"tam_expansion", "supply_constraint", "ignored_wall_st", "upcoming_catalyst", "score"}, "why_now", "freshness_days", "fundamentals", "bear_case", "watch_next"}`
 
 ### 5. Compute allocations
 
+Run the allocation script (requires shell access):
+
 ```
-python3 <SKILL_DIR>/scripts/allocate.py <amount> <T1>:<P1> <T2>:<P2> ...
+python3 <SCRIPTS_DIR>/allocate.py <amount> <T1>:<P1> <T2>:<P2> ...
 ```
 
-Equal-weight by default.
+Equal-weight by default. If shell access is unavailable, compute inline: each ticker gets `amount / N` dollars; whole shares = `floor(alloc / price)`; leftover = `alloc - (whole_shares × price)`.
 
 ### 6. Write HTML report
 
-**Step 6a — compose data JSON and write using Write tool:**
+**Step 6a — compose data JSON and write to a temp file using your harness's file-write tool:**
 
 ```
-path: <REPORTS_DIR>/invest-contrarian-<YYYYMMDD-HHMMSS>.json
+path: /tmp/etw-contrarian-<YYYYMMDD-HHMMSS>.json
 {
   "skill_type": "contrarian",
   "skill_name": "invest-contrarian",
@@ -98,10 +112,10 @@ path: <REPORTS_DIR>/invest-contrarian-<YYYYMMDD-HHMMSS>.json
 
 **Step 6b — generate HTML:**
 ```
-python3 <SKILL_DIR>/scripts/generate_html.py <PATH_TO_JSON>
+python3 <SCRIPTS_DIR>/generate_html.py /tmp/etw-contrarian-<YYYYMMDD-HHMMSS>.json
 ```
 
-Tell the user: `📊 Report saved to: <output path>`
+The script prints the output path and saves both `.html` and `.json` to `<REPORTS_DIR>`. Report the path to the user.
 
 ### 7. Synthesize the text brief
 
@@ -159,7 +173,8 @@ Render this template in markdown:
 
 ## Don'ts
 
-- Don't inflate checklist scores. A genuine 2/4 with a clear catalyst is more actionable than a inflated 4/4.
+- Don't inflate checklist scores. A genuine 2/4 with a clear catalyst is more actionable than an inflated 4/4.
 - Don't include stocks in SEC enforcement actions (vs. activists seeking change — those are fine).
 - Don't run scouts sequentially. Parallel only.
 - Don't skip the disclaimer.
+

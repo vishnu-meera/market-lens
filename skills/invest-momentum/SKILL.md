@@ -12,6 +12,14 @@ Discover what's trending across retail + institutional flows, explain *why* each
 
 ---
 
+## Paths (resolve before running)
+
+- **SKILL_DIR** — directory containing this SKILL.md file
+- **SCRIPTS_DIR** — `<SKILL_DIR>/../../scripts` (shared Python helpers: `allocate.py`, `generate_html.py`)
+- **REPORTS_DIR** — `<SKILL_DIR>/../../reports` (output folder)
+
+---
+
 ## How to run
 
 ### 1. Parse the dollar amount
@@ -24,9 +32,11 @@ Look in the user's message for a number that represents available cash. Patterns
 
 ### 2. Wave 1 — spawn 4 scout sub-agents IN PARALLEL
 
-Use a **single message with four Agent tool calls** (not sequential). Use `subagent_type: "general-purpose"` for each. Each prompt should be exactly:
+Dispatch all 4 simultaneously — a single parallel batch, not sequential. Each agent prompt:
 
 > Read the file at `<SKILL_DIR>/agents/<SCOUT_FILE>` and execute its instructions exactly. Return only the JSON output specified in that file — no preamble, no markdown, no commentary.
+
+*Harness note: on Claude Code use one message with 4 `Agent` tool calls (`subagent_type: "general-purpose"`); on Gemini CLI or other harnesses use the equivalent parallel mechanism.*
 
 Paths (resolve <SKILL_DIR> to the current skill directory):
 - `agents/scout-reddit.md`
@@ -51,9 +61,11 @@ If a scout returns `{"error": "..."}` or empty, note the source as unavailable a
 
 ### 4. Wave 2 — spawn 5 analyst sub-agents IN PARALLEL
 
-Single message, five Agent tool calls. Use `subagent_type: "general-purpose"`. Each prompt:
+Dispatch all 5 simultaneously. Each agent prompt:
 
 > Read `<SKILL_DIR>/agents/analyst.md` and execute it against ticker `<TICKER>`. Return only the JSON object specified — no preamble, no markdown.
+
+*Harness note: same parallel mechanism as Wave 1.*
 
 Each returns:
 
@@ -65,22 +77,24 @@ If an analyst fails on one ticker, note it in the final brief ("could not analyz
 
 ### 5. Compute share allocations
 
-Run via Bash, equal-weighted by default:
+Run the allocation script (requires shell access):
 
 ```
-python3 <SKILL_DIR>/scripts/allocate.py <amount> <T1>:<P1> <T2>:<P2> <T3>:<P3> <T4>:<P4> <T5>:<P5>
+python3 <SCRIPTS_DIR>/allocate.py <amount> <T1>:<P1> <T2>:<P2> <T3>:<P3> <T4>:<P4> <T5>:<P5>
 ```
 
-Use prices from the analyst output. Capture stdout — it includes both whole-share and fractional-share strategies.
+Use prices from the analyst output. The script prints whole-share and fractional-share strategies.
+
+If shell access is unavailable, compute inline: each ticker gets `amount / N` dollars; whole shares = `floor(alloc / price)`; leftover = `alloc - (whole_shares × price)`.
 
 ### 6. Write HTML report
 
 After allocation, compose a JSON object with all pick data and write it to a temp file, then generate the HTML report.
 
-**Step 6a — compose the data JSON.** Build this object in your head, then write it as a file using the Write tool (not Bash — the Write tool handles escaping correctly):
+**Step 6a — compose the data JSON.** Build this object, then write it to a temp file using your harness's file-write tool:
 
 ```
-path: <REPORTS_DIR>/invest-momentum-<YYYYMMDD-HHMMSS>.json
+path: /tmp/etw-momentum-<YYYYMMDD-HHMMSS>.json
 contents: {
   "skill_type": "momentum",
   "skill_name": "invest-momentum",
@@ -108,10 +122,10 @@ contents: {
 
 **Step 6b — generate the HTML:**
 ```
-python3 <SKILL_DIR>/scripts/generate_html.py <PATH_TO_JSON>
+python3 <SCRIPTS_DIR>/generate_html.py /tmp/etw-momentum-<YYYYMMDD-HHMMSS>.json
 ```
 
-Capture the output path printed by the script. Tell the user: `📊 Report saved to: <path>` before showing the text brief.
+The script prints the output path and saves both `.html` and `.json` to `<REPORTS_DIR>`. Report the path to the user before showing the text brief.
 
 ### 7. Synthesize using the template below
 
@@ -183,4 +197,4 @@ If your brokerage supports fractional shares: [paste fractional row from allocat
 - Don't skip the disclaimer.
 - Don't recommend buying — only "here's what's trending, here's why, here's the math."
 - Don't include crypto, leveraged ETFs (3× bull/bear), or penny stocks.
-- Don't run the scouts sequentially. Parallel only.
+- Don't run scouts sequentially. Parallel only.

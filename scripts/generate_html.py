@@ -33,6 +33,7 @@ JSON schema expected (all fields optional except picks):
   "how_picked": "..."
 }
 """
+import html
 import json
 import os
 import sys
@@ -65,12 +66,12 @@ def pick_html(p, skill_type, accent):
     whole = p.get("whole_shares", 0)
     frac = p.get("frac_shares")
     score = p.get("scout_score", "")
-    sources = p.get("scout_sources", "")
-    why = p.get("why_now", "")
+    sources = html.escape(p.get("scout_sources", ""))
+    why = html.escape(p.get("why_now", ""))
     fresh = p.get("freshness_days")
-    fund = p.get("fundamentals", "")
-    bear = p.get("bear_case", "")
-    watch = p.get("watch_next", "")
+    fund = html.escape(p.get("fundamentals", ""))
+    bear = html.escape(p.get("bear_case", ""))
+    watch = html.escape(p.get("watch_next", ""))
 
     price_str = f"${price:,.2f}" if price else "N/A"
     alloc_str = f"${alloc:,.2f}" if alloc else ""
@@ -90,9 +91,9 @@ def pick_html(p, skill_type, accent):
 
     if skill_type == "balanced":
         role = p.get("role", "")
-        er = p.get("expense_ratio", "")
-        aum = p.get("aum", "")
-        top_h = p.get("top_holdings_summary", "")
+        er = html.escape(p.get("expense_ratio", ""))
+        aum = html.escape(p.get("aum", ""))
+        top_h = html.escape(p.get("top_holdings_summary", ""))
         role_color = accent if role == "core" else "#d29922"
         role_badge = f'<span class="role-badge" style="background:{role_color}20;color:{role_color};border:1px solid {role_color}40">{role.upper()}</span>' if role else ""
         extra = f'''
@@ -150,7 +151,7 @@ def render(data):
     scouts_fail = data.get("scouts_fail", [])
     picks = data.get("picks", [])
     runners = data.get("runners_up", [])
-    how = data.get("how_picked", "")
+    how = html.escape(data.get("how_picked", ""))
 
     c = SKILL_COLORS.get(skill_type, SKILL_COLORS["momentum"])
     accent = c["accent"]
@@ -164,11 +165,11 @@ def render(data):
 
     runners_html = ""
     if runners:
-        rows = "".join(f'<div class="runner-row"><span class="runner-ticker">{r["ticker"]}</span><span class="runner-reason">{r.get("reason","")}</span></div>' for r in runners)
+        rows = "".join(f'<div class="runner-row"><span class="runner-ticker">{html.escape(r.get("ticker",""))}</span><span class="runner-reason">{html.escape(r.get("reason",""))}</span></div>' for r in runners)
         runners_html = f'<div class="runners-up"><h3>Strong runners-up dropped</h3>{rows}</div>'
 
-    scouts_ok_html = "".join(f'<div class="source-row"><span class="dot ok">✓</span>{s}</div>' for s in scouts_ok)
-    scouts_fail_html = "".join(f'<div class="source-row"><span class="dot fail">✗</span>{s} (unavailable)</div>' for s in scouts_fail)
+    scouts_ok_html = "".join(f'<div class="source-row"><span class="dot ok">✓</span>{html.escape(s)}</div>' for s in scouts_ok)
+    scouts_fail_html = "".join(f'<div class="source-row"><span class="dot fail">✗</span>{html.escape(s)} (unavailable)</div>' for s in scouts_fail)
 
     return f'''<!DOCTYPE html>
 <html lang="en">
@@ -269,7 +270,7 @@ def main():
     ts_file = ts_raw.replace(":", "").replace("T", "-").replace(" ", "-")[:15]
 
     script_dir = os.path.dirname(os.path.realpath(__file__))
-    reports_dir = os.path.realpath(os.path.join(script_dir, "..", "..", "reports"))
+    reports_dir = os.path.realpath(os.path.join(script_dir, "..", "reports"))
     os.makedirs(reports_dir, exist_ok=True)
 
     out_name = f"{ts_file}-{skill_name}.html"

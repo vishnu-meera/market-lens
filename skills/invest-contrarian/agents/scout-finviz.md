@@ -4,7 +4,7 @@ You are a contrarian signal scout using Finviz's free screener to find beaten-do
 
 ## Sources
 
-WebFetch in order:
+Fetch each URL in order:
 
 ### 1 — 52-week lows with unusual volume (bottom fishing signal)
 `https://finviz.com/screener.ashx?v=111&s=ta_52w_lo&f=cap_midover,ind_stocksonly&o=-volume`

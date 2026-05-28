@@ -12,6 +12,14 @@ Build a balanced, long-term portfolio using ETFs as the backbone, with 1–2 sat
 
 ---
 
+## Paths (resolve before running)
+
+- **SKILL_DIR** — directory containing this SKILL.md file
+- **SCRIPTS_DIR** — `<SKILL_DIR>/../../scripts` (shared Python helpers: `allocate.py`, `generate_html.py`)
+- **REPORTS_DIR** — `<SKILL_DIR>/../../reports` (output folder)
+
+---
+
 ## How to run
 
 ### 1. Parse the dollar amount
@@ -20,9 +28,11 @@ Look for `$X` or a bare number in the user's message. If absent, ask once: "How 
 
 ### 2. Wave 1 — spawn 3 scout sub-agents IN PARALLEL
 
-Single message, three Agent tool calls, `subagent_type: "general-purpose"`. Each prompt:
+Dispatch all 3 simultaneously — a single parallel batch, not sequential. Each agent prompt:
 
 > Read the file at `<SKILL_DIR>/agents/<SCOUT_FILE>` and execute its instructions exactly. Return only the JSON output specified in that file.
+
+*Harness note: on Claude Code use one message with 3 `Agent` tool calls (`subagent_type: "general-purpose"`); on Gemini CLI or other harnesses use the equivalent parallel mechanism.*
 
 Paths (resolve <SKILL_DIR> to the current skill directory):
 - `agents/scout-reddit.md`
@@ -42,9 +52,11 @@ Each scout returns picks in `[{"ticker", "name", "mentions", "source_url", "snip
 
 ### 4. Wave 2 — spawn 5 analyst sub-agents IN PARALLEL
 
-Single message, five Agent tool calls. Each prompt:
+Dispatch all 5 simultaneously. Each agent prompt:
 
 > Read `<SKILL_DIR>/agents/analyst.md` and execute it against ticker `<TICKER>`. Return only the JSON object specified.
+
+*Harness note: same parallel mechanism as Wave 1.*
 
 Each returns: `{"ticker", "type", "price", "role", "expense_ratio", "aum", "top_holdings_summary", "why_now", "freshness_days", "fundamentals", "bear_case", "watch_next"}`
 
@@ -59,16 +71,20 @@ Default allocation:
 - Slot 4 (satellite): 12%
 - Slot 5 (satellite): 8%
 
+Run the allocation script (requires shell access):
+
 ```
-python3 <SKILL_DIR>/scripts/allocate.py <amount> <T1>:<P1>:0.35 <T2>:<P2>:0.25 <T3>:<P3>:0.20 <T4>:<P4>:0.12 <T5>:<P5>:0.08
+python3 <SCRIPTS_DIR>/allocate.py <amount> <T1>:<P1>:0.35 <T2>:<P2>:0.25 <T3>:<P3>:0.20 <T4>:<P4>:0.12 <T5>:<P5>:0.08
 ```
+
+If shell access is unavailable, compute inline using the weights above: alloc = `amount × weight`; whole shares = `floor(alloc / price)`; leftover = `alloc - (whole_shares × price)`.
 
 ### 6. Write HTML report
 
-**Step 6a — write data JSON using Write tool:**
+**Step 6a — write data JSON to a temp file using your harness's file-write tool:**
 
 ```
-path: <REPORTS_DIR>/invest-balanced-<YYYYMMDD-HHMMSS>.json
+path: /tmp/etw-balanced-<YYYYMMDD-HHMMSS>.json
 {
   "skill_type": "balanced",
   "skill_name": "invest-balanced",
@@ -96,10 +112,10 @@ path: <REPORTS_DIR>/invest-balanced-<YYYYMMDD-HHMMSS>.json
 
 **Step 6b — generate HTML:**
 ```
-python3 <SKILL_DIR>/scripts/generate_html.py <PATH_TO_JSON>
+python3 <SCRIPTS_DIR>/generate_html.py /tmp/etw-balanced-<YYYYMMDD-HHMMSS>.json
 ```
 
-Tell the user: `📊 Report saved to: <output path>`
+The script prints the output path and saves both `.html` and `.json` to `<REPORTS_DIR>`. Report the path to the user.
 
 ### 7. Synthesize the text brief
 

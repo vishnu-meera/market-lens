@@ -60,7 +60,7 @@ Score NO if: no catalyst identified beyond "eventually the market will recognize
 
 ## Data sources
 
-Use WebFetch or Google Search in order. If a direct fetch fails (e.g., 403 Forbidden), use Google Search to find the data.
+Fetch each URL in order. If a direct fetch fails (403, JS-rendered, or timeout), search the web for the data.
 
 1. **Ticker Stats (Preferred)** — `https://stockanalysis.com/stocks/<TICKER>/`
 2. `https://finance.yahoo.com/quote/<TICKER>` — price, market cap, P/E, sector
@@ -68,7 +68,7 @@ Use WebFetch or Google Search in order. If a direct fetch fails (e.g., 403 Forbi
 4. `https://finance.yahoo.com/quote/<TICKER>/analysis` — analyst count + estimates
 5. `https://efts.sec.gov/LATEST/search-index?q=%22<TICKER>%22&forms=8-K` — recent 8-Ks
 6. `https://openinsider.com/screener?s=<TICKER>` — insider activity
-7. Google Search: `"<TICKER> stock analysis TAM pricing power catalysts"` if above fail.
+7. **Web search**: `"<TICKER> stock analysis TAM pricing power catalysts"` if above fail.
 
 ## Output
 

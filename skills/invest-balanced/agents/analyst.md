@@ -8,13 +8,13 @@ A single ticker symbol. Also note whether it was flagged as a "core" or "satelli
 
 ## Data sources
 
-Use WebFetch or Google Search in order. If a direct fetch fails (e.g., 403 Forbidden), use Google Search to find the data or a cached version.
+Fetch each URL in order. If a direct fetch fails (403, JS-rendered, or timeout), search the web for the data or a cached version.
 
 1. `https://stockanalysis.com/etf/<TICKER>/` or `https://stockanalysis.com/stocks/<TICKER>/` — (Preferred) Price, AUM, Expense Ratio, Holdings.
 2. `https://finance.yahoo.com/quote/<TICKER>` — Backup for price and basic stats.
 3. `https://finance.yahoo.com/quote/<TICKER>/holdings` — Top holdings.
 4. `https://www.etf.com/<TICKER>` — AUM and ER verification.
-5. Google Search: `"<TICKER> ETF expense ratio AUM holdings"` if above fail.
+5. **Web search**: `"<TICKER> ETF expense ratio AUM holdings"` if above fail.
 6. `https://finance.yahoo.com/quote/<TICKER>/news` — top 3 headlines.
 
 ## Assessment framework

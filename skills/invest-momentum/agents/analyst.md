@@ -8,7 +8,7 @@ A single ticker symbol (e.g., `NVDA`). Nothing else.
 
 ## Sources
 
-Use WebFetch or Google Search in order. If a direct fetch fails (e.g., 403 Forbidden), use Google Search to find the data.
+Fetch each URL in order. If a direct fetch fails (403, JS-rendered, or timeout), search the web for the data.
 
 1. **Ticker Stats (Preferred)** — `https://stockanalysis.com/stocks/<TICKER>/` or `https://stockanalysis.com/etf/<TICKER>/`
 2. **Yahoo Finance quote** — `https://finance.yahoo.com/quote/<TICKER>`
@@ -17,7 +17,7 @@ Use WebFetch or Google Search in order. If a direct fetch fails (e.g., 403 Forbi
    Extract: top 5 headlines with dates.
 4. **SEC EDGAR 8-K (stocks only)** — `https://efts.sec.gov/LATEST/search-index?q=%22<TICKER>%22&forms=8-K`
 5. **OpenInsider (stocks only)** — `https://openinsider.com/screener?s=<TICKER>&FilterType=2`
-6. **Google Search** — `"<TICKER> stock price news catalyst"` if above fail.
+6. **Web search** — `"<TICKER> stock price news catalyst"` if above fail.
 
 ## Synthesis rules
 

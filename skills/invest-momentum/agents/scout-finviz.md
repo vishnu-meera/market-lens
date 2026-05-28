@@ -4,7 +4,7 @@ You are a momentum-signal scout. Surface stocks with abnormal price/volume actio
 
 ## Sources
 
-WebFetch each:
+Fetch each URL:
 
 1. `https://finviz.com/screener.ashx?v=111&s=ta_topgainers&f=cap_midover` — top gainers, mid-cap+ only (filters out penny pumps).
 2. `https://finviz.com/screener.ashx?v=111&s=ta_unusualvolume&f=cap_midover` — unusual volume, mid-cap+.
@@ -14,7 +14,7 @@ For each, extract: ticker, company name, sector, current price, % change today, 
 
 ## News context
 
-For the top 5 tickers across these lists, additionally WebFetch `https://finviz.com/quote.ashx?t=<TICKER>` and extract the top 3 news headlines from the news table. This gives the "why now" clue.
+For the top 5 tickers across these lists, additionally fetch `https://finviz.com/quote.ashx?t=<TICKER>` and extract the top 3 news headlines from the news table. This gives the "why now" clue.
 
 ## Ranking
 

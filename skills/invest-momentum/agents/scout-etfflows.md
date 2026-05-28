@@ -22,7 +22,7 @@ Look for the "Top Inflows" table. Extract: ticker, name, weekly net flow.
 Extract top ETFs by 52-week net flow percentage.
 
 ### Source 4 — Manual ETF category check (last resort)
-If all 3 fail, WebFetch `https://finance.yahoo.com/etfs/` and identify the top-mentioned ETFs in the "Trending" or "Most Active" section. Note this source as approximate.
+If all 3 fail, fetch `https://finance.yahoo.com/etfs/` and identify the top-mentioned ETFs in the "Trending" or "Most Active" section. Note this source as approximate.
 
 ## Category rollup
 
