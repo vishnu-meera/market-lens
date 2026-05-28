@@ -1,5 +1,5 @@
 {
-  "name": "@vishnusankar/market-lens",
+  "name": "market-lens",
   "version": "0.1.0",
   "description": "Three investment research lenses: momentum (what's trending), contrarian (undervalued hidden gems), and balanced (Boglehead-style ETF portfolio). Works with Claude Code, Gemini CLI, OpenAI Codex, Cursor, and any Agent Skills-compatible harness.",
   "keywords": [
