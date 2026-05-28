@@ -1,35 +1,69 @@
-# ETW Finder: Investment Research Skills for Gemini CLI
+# ETW Finder — Investment Research Skills
 
-A collection of autonomous investment research skills for the Gemini CLI. These skills crawl various financial data sources (Reddit, Finviz, SEC, OpenInsider, ETF flows, etc.) to produce structured research briefs and portfolio recommendations.
+Three autonomous investment research skills that crawl financial data sources and produce structured research briefs. Not financial advice.
 
-## 🚀 Skills Included
+---
 
-- **`invest-balanced`**: Builds diversified, Boglehead-style portfolios with core ETF holdings and tactical satellite positions.
-- **`invest-momentum`**: Identifies what's trending across retail and institutional flows for short-term discretionary cash.
-- **`invest-contrarian`**: Finds undervalued "hidden gems" ignored by Wall Street using a 4-ingredient quality checklist.
+## Skills
 
-## 🛠️ Installation (Local Link)
+| Skill | What it does | Data sources |
+|---|---|---|
+| `invest-momentum` | Finds what retail and institutional money is chasing right now | Reddit RSS, StockTwits, Finviz movers, ETF inflows |
+| `invest-balanced` | Builds a Boglehead-style core + satellite portfolio | r/Bogleheads, ETFDB category leaders, FRED rates, VIX |
+| `invest-contrarian` | Surfaces undervalued names Wall Street is ignoring | Reddit value subs, OpenInsider cluster buys, Finviz 52w-low, SEC 13D filings |
 
-To use these skills in your Gemini CLI session, symlink the skill directories to your Gemini skills folder:
+---
+
+## Install
+
+**Via skillpm (recommended)**
 
 ```bash
-# Example for macOS
-ln -s $(pwd)/invest-balanced ~/.gemini/skills/invest-balanced
-ln -s $(pwd)/invest-momentum ~/.gemini/skills/invest-momentum
-ln -s $(pwd)/invest-contrarian ~/.gemini/skills/invest-contrarian
+npx skillpm install @paradox/etw-finder-skills
 ```
 
-Alternatively, add this directory to your `include` paths in `~/.gemini/config.json`.
+**Manual symlink**
 
-## 📊 Reports
+```bash
+ln -s $(pwd)/skills/invest-momentum  ~/.claude/skills/invest-momentum
+ln -s $(pwd)/skills/invest-balanced  ~/.claude/skills/invest-balanced
+ln -s $(pwd)/skills/invest-contrarian ~/.claude/skills/invest-contrarian
+```
 
-All research briefs are output as:
-1.  **JSON Data**: Raw analysis for further processing.
-2.  **Styled HTML**: A beautiful, GitHub-themed dashboard for manual review.
+Works with Claude Code, Gemini CLI, Cursor, VS Code Copilot, and any harness that supports `SKILL.md`.
 
-Reports are saved in the `reports/` directory.
+---
 
-## ⚠️ Disclaimer
+## How it works
 
-**Research brief only. Not financial advice.**
-Investing involves risk. Always verify data and news before acting. The authors are not responsible for any financial losses.
+Each skill runs two parallel agent waves:
+
+1. **Scout wave** — 3–4 sub-agents crawl distinct sources concurrently, return JSON pick arrays
+2. **Analyst wave** — 5 sub-agents deep-dive each ticker in parallel
+3. `scripts/allocate.py` splits a dollar amount across picks by weight
+4. `scripts/generate_html.py` writes `reports/<timestamp>-<skill>.html` + `.json`
+
+Contrarian picks are scored on a 4-ingredient checklist: TAM expansion, supply constraint, ignored by Wall St, upcoming catalyst.
+Balanced weights: core slots 35/25/20%, satellite slots 12/8%.
+
+---
+
+## Output
+
+Reports land in `reports/` as a styled HTML dashboard and a raw JSON file.
+
+---
+
+## Directory layout
+
+```
+etw_finder/
+  skills/
+    invest-momentum/   SKILL.md + agents/
+    invest-balanced/   SKILL.md + agents/
+    invest-contrarian/ SKILL.md + agents/
+  scripts/
+    allocate.py
+    generate_html.py
+  reports/
+```
