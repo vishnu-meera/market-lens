@@ -1,6 +1,6 @@
 {
   "name": "market-lens",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "description": "Three investment research lenses: momentum (what's trending), contrarian (undervalued hidden gems), and balanced (Boglehead-style ETF portfolio). Works with Claude Code, Gemini CLI, OpenAI Codex, Cursor, and any Agent Skills-compatible harness.",
   "keywords": [
     "agent-skill",
@@ -13,6 +13,10 @@
     "stock-screener",
     "finance"
   ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vishnu-meera/market-lens.git"
+  },
   "author": "Vishnu Sankar",
   "license": "MIT",
   "scripts": {
