@@ -1,125 +1,58 @@
 ---
 name: invest-balanced
-description: Use when the user wants a diversified, long-term portfolio recommendation, a Boglehead-style or core-satellite investment strategy, or asks what ETFs to hold for a balanced portfolio. Triggers on phrases like "balanced portfolio", "what ETFs should I buy", "set and forget investing", "index fund picks", "3-fund portfolio", "core ETF recommendations", "long-term holdings". Pulls signals from r/Bogleheads/ETFs, ETFDB category leaders, and macro conditions. Analyst evaluates each pick as core or satellite with expense ratio and AUM quality checks. Outputs 3–4 core positions and 1–2 satellite positions with share allocations.
-version: 0.1.0
+description: Use when the user wants a diversified, long-term portfolio recommendation, a Boglehead-style or core-satellite investment strategy, or asks what ETFs to hold for a balanced portfolio. Triggers on phrases like "balanced portfolio", "what ETFs should I buy", "set and forget investing", "index fund picks", "3-fund portfolio", "core ETF recommendations", "long-term holdings". Pulls signals from r/Bogleheads/ETFs (sentiment-classified), ETFDB category leaders, and macro conditions; uses Yahoo Finance for structured ETF data (expense ratio, AUM, holdings). Outputs 3 core + 2 satellite positions with share allocations.
+version: 0.2.0
 ---
 
 # invest-balanced
 
-Build a balanced, long-term portfolio using ETFs as the backbone, with 1–2 satellite positions where the macro or tactical case is compelling. Aimed at the "set and forget with annual rebalancing" investor.
+Build a balanced long-term portfolio: ETF core + 1–2 tactical satellites. Aimed at the "set-and-forget with annual rebalancing" investor.
 
-> ⚠️ **Research brief only. Not financial advice.** Balanced investing still carries market risk. Past performance doesn't guarantee future returns.
+> ⚠️ **Research brief only. Not financial advice.** Balanced still loses value in broad downturns. Past performance ≠ future returns.
 
 ---
 
-## Paths (resolve before running)
+## Paths
 
-- **SKILL_DIR** — directory containing this SKILL.md file
-- **SCRIPTS_DIR** — `<SKILL_DIR>/../../scripts` (shared Python helpers: `allocate.py`, `generate_html.py`)
-- **REPORTS_DIR** — `<SKILL_DIR>/../../reports` (output folder)
+- **SKILL_DIR** — this file's directory
+- **SCRIPTS_DIR** — `<SKILL_DIR>/../../scripts`
+- **REPORTS_DIR** — `<SKILL_DIR>/../../reports`
+- **SHARED_DIR** — `<SKILL_DIR>/../_shared`
+
+---
+
+## Configuration for this mode
+
+- `MODE` = `balanced`
+- `SKILL_NAME` = `invest-balanced`
+- `NUM_PICKS` = 5 (3 core + 2 satellite)
+- `ALLOC` = `0.35, 0.25, 0.20, 0.12, 0.08`
+- `ANALYST_EXTRAS` = `role`
+- `REDDIT_SUBS` = `Bogleheads, ETFs, investing, personalfinance`
+- `SCOUT_FILES`:
+  - `<SHARED_DIR>/agents/scout-reddit-base.md` (with `REDDIT_SUBS` above; mode-specific filtering inside the base scout focuses on ETFs)
+  - `<SKILL_DIR>/agents/scout-etfdb.md`
+  - `<SKILL_DIR>/agents/scout-macro.md` — returns a special `_MACRO_` object with `tilt_recommendation`; extract and use in aggregation
+- Max scouts = 3 → max confidence stars = 3★
+
+**Portfolio construction rules (apply during Step 3 aggregation):**
+- Slots 1–3 must be CORE (total US market, total bond, total international). If scouts don't surface them, default to **VTI + BND + VXUS**.
+- Slots 4–5 are SATELLITE (sector ETF, factor ETF, or a single stock with a fundamental thesis).
+- Use the macro scout's `tilt_recommendation`: high rates → short-duration bonds (SHY/VGSH) over long-duration (TLT); VIX > 25 → upweight bond slot.
 
 ---
 
 ## How to run
 
-### 1. Parse the dollar amount
+Read `<SHARED_DIR>/orchestrate.md` and execute its 9 steps using the configuration above.
 
-Look for `$X` or a bare number in the user's message. If absent, ask once: "How much are you investing?" Then proceed.
+In Step 3, apply the portfolio construction rules and the macro tilt before finalizing the top 5. In Step 4 (analyst wave), pass `ANALYST_EXTRAS=role` so each analyst tags `role` ("core"|"satellite"), `expense_ratio`, `aum`, `top_holdings_summary`. Pull ER from `fundamentals.expense_ratio` if populated; otherwise mark as "verify on issuer page."
 
-### 2. Wave 1 — spawn 3 scout sub-agents IN PARALLEL
+After Step 8, render the markdown brief using the template below.
 
-Dispatch all 3 simultaneously — a single parallel batch, not sequential. Each agent prompt:
+---
 
-> Read the file at `<SKILL_DIR>/agents/<SCOUT_FILE>` and execute its instructions exactly. Return only the JSON output specified in that file.
-
-*Harness note: on Claude Code use one message with 3 `Agent` tool calls (`subagent_type: "general-purpose"`); on Gemini CLI or other harnesses use the equivalent parallel mechanism.*
-
-Paths (resolve <SKILL_DIR> to the current skill directory):
-- `agents/scout-reddit.md`
-- `agents/scout-etfdb.md`
-- `agents/scout-macro.md`
-
-Each scout returns picks in `[{"ticker", "name", "mentions", "source_url", "snippet"}]` format (macro scout returns special `_MACRO_` object — extract its `tilt_recommendation` and set it aside).
-
-### 3. Aggregate with balanced weighting
-
-- Dedupe tickers (excluding `_MACRO_`).
-- Scoring: `(distinct scouts * 3) + mentions`
-- **Portfolio construction rules:**
-  - **Slots 1–3**: Must be CORE holdings (total market, bond, international). If scout data doesn't surface them, default to VTI + BND + VXUS as the evidence-based core.
-  - **Slots 4–5**: SATELLITE — highest-scoring thematic/sector ETFs or one compelling stock from scouts.
-  - Use `tilt_recommendation` from macro scout to decide: if rates are high → include a short-duration bond ETF (SHY, VGSH) over long-duration (TLT); if VIX > 25 → upweight bond slot.
-
-### 4. Wave 2 — spawn 5 analyst sub-agents IN PARALLEL
-
-Dispatch all 5 simultaneously. Each agent prompt:
-
-> Read `<SKILL_DIR>/agents/analyst.md` and execute it against ticker `<TICKER>`. Return only the JSON object specified.
-
-*Harness note: same parallel mechanism as Wave 1.*
-
-Each returns: `{"ticker", "type", "price", "role", "expense_ratio", "aum", "top_holdings_summary", "why_now", "freshness_days", "fundamentals", "bear_case", "watch_next"}`
-
-### 5. Compute allocations
-
-Allocate differently from equal-weight: core slots get more weight.
-
-Default allocation:
-- Slot 1 (core): 35%
-- Slot 2 (core): 25%
-- Slot 3 (core): 20%
-- Slot 4 (satellite): 12%
-- Slot 5 (satellite): 8%
-
-Run the allocation script (requires shell access):
-
-```
-python3 <SCRIPTS_DIR>/allocate.py <amount> <T1>:<P1>:0.35 <T2>:<P2>:0.25 <T3>:<P3>:0.20 <T4>:<P4>:0.12 <T5>:<P5>:0.08
-```
-
-If shell access is unavailable, compute inline using the weights above: alloc = `amount × weight`; whole shares = `floor(alloc / price)`; leftover = `alloc - (whole_shares × price)`.
-
-### 6. Write HTML report
-
-**Step 6a — write data JSON to a temp file using your harness's file-write tool:**
-
-```
-path: /tmp/etw-balanced-<YYYYMMDD-HHMMSS>.json
-{
-  "skill_type": "balanced",
-  "skill_name": "invest-balanced",
-  "amount": <amount>,
-  "generated_at": "<ISO timestamp>",
-  "scouts_ok": ["<scouts that returned data>"],
-  "scouts_fail": ["<scouts that errored>"],
-  "macro_context": "<tilt_recommendation from macro scout, or 'unavailable'>",
-  "picks": [
-    {
-      "rank": 1, "ticker": "<T>", "type": "ETF|Stock", "price": <N>,
-      "allocation": <N>, "whole_shares": <N>, "frac_shares": <N>,
-      "scout_score": <N>, "scout_sources": "<which scouts>",
-      "why_now": "<...>", "freshness_days": <N>,
-      "fundamentals": "<...>", "bear_case": "<...>", "watch_next": "<...>",
-      "expense_ratio": "<...>", "aum": "<...>", "role": "core|satellite",
-      "top_holdings_summary": "<...>"
-    }
-    ... all 5 picks
-  ],
-  "runners_up": [{"ticker": "<T>", "reason": "<...>"}],
-  "how_picked": "<...>"
-}
-```
-
-**Step 6b — generate HTML:**
-```
-python3 <SCRIPTS_DIR>/generate_html.py /tmp/etw-balanced-<YYYYMMDD-HHMMSS>.json
-```
-
-The script prints the output path and saves both `.html` and `.json` to `<REPORTS_DIR>`. Report the path to the user.
-
-### 7. Synthesize the text brief
-
-Render this template:
+## Markdown brief template
 
 ```markdown
 # Balanced picks — $[AMOUNT] total
@@ -127,19 +60,24 @@ Render this template:
 
 > ⚠️ Research brief only. Not financial advice.
 
+📁 Report: `[REPORTS_DIR/<filename>.html]`
+
 ## Macro context
-[macro_context from scout — e.g., "Fed funds 4.75%, 10Y yield 4.62%, VIX 18 — slight bond overweight favored"]
+[macro_context — e.g., "Fed funds 4.75%, 10Y yield 4.62%, VIX 18 — slight bond overweight favored"]
 
 ## Portfolio (3 core + 2 satellite)
 
-### [C] 1. [TICKER] ([ETF|Stock]) — $[ALLOC] · [shares] · ER: [expense_ratio] · AUM: [aum]
+### [C] 1. [TICKER] ([ETF|Stock]) — $[ALLOC] · [shares] · ER: [expense_ratio] · AUM: [aum] · [★ rating: N of 3]
 **Role:** CORE
+[⚠️ Trailing 1mo +N% — late-entry risk]   ← only if top_tick_warning
 - **Why:** [why_now]
 - **Holdings:** [top_holdings_summary]
+- **Fundamentals:** [PE or N/A] PE · [market_cap formatted]
 - **Bear case:** [bear_case]
 - **Watch next:** [watch_next]
+[⚠️ Fundamentals fetch was partial: [fundamentals_note]]   ← only if applicable
 
-### [S] 4. [TICKER] — $[ALLOC] · [shares] *(satellite)*
+### [S] 4. [TICKER] — $[ALLOC] · [shares] *(satellite)* · [★ rating]
 - **Why:** [why_now]
 - **Bear case:** [bear_case]
 - **Watch next:** [watch_next]
@@ -147,34 +85,36 @@ Render this template:
 [repeat for all 5 picks — mark [C] for core, [S] for satellite]
 
 ## Rebalancing note
-[1 sentence on when/how to rebalance — typically annually or when any position drifts > 5% from target weight]
+Rebalance annually or when any position drifts > 5% from target weight.
 
 ## How these were picked
-[overlap + macro tilt rationale]
+[overlap + macro tilt rationale + confidence rating interpretation]
 
 ## Sources checked
-- Reddit: r/Bogleheads, r/ETFs, r/investing, r/personalfinance [(unavailable) if failed]
-- ETFDB category leaders + StockAnalysis popular ETF screener [(unavailable) if failed]
-- FRED (Fed rate, 10Y yield) + VIX + macro news [(unavailable) if failed]
-- Yahoo Finance, ETF.com, StockAnalysis — per-ticker analyst deep dive
+- Reddit: r/Bogleheads, r/ETFs, r/investing, r/personalfinance (sentiment-classified) [or "(unavailable)"]
+- ETFDB category leaders + StockAnalysis popular ETF screener [or "(unavailable)"]
+- FRED (Fed rate, 10Y yield) + VIX + macro news [or "(unavailable)"]
+- Yahoo Finance via `fundamentals.py` (ER, AUM, holdings where available)
 
 ---
-*Not financial advice. Balanced portfolios still lose value in broad market downturns. Rebalance annually or at >5% drift.*
+*Not financial advice. Rebalance annually or at >5% drift.*
 ```
 
 ---
 
 ## Fallback core defaults
 
-If scouts fail entirely, default to the Boglehead 3-fund portfolio as the baseline:
+If scouts fail entirely, default to the Boglehead 3-fund baseline:
 - VTI (U.S. total market, 40%)
 - VXUS (international total market, 25%)
 - BND (U.S. total bond market, 20%)
-Then add 2 satellite slots based on any partial scout data, or note "insufficient signal for satellite picks."
+
+Add 2 satellites based on partial scout data, or note "insufficient signal for satellite picks."
 
 ## Don'ts
 
-- Don't include leveraged, inverse, or single-stock ETFs.
+- Don't include leveraged, inverse, or single-stock leveraged ETFs.
 - Don't weight satellite positions > 20% combined.
 - Don't skip the macro context section.
-- Don't run scouts sequentially. Parallel only.
+- Don't run scouts sequentially.
+- Don't fabricate ER/AUM if `fundamentals.py` doesn't surface them.

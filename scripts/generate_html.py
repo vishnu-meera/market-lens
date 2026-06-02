@@ -57,7 +57,35 @@ def score_color(val):
     return {"yes": "#3fb950", "partial": "#d29922", "no": "#f85149"}.get(str(val).lower(), "#8b949e")
 
 
-def pick_html(p, skill_type, accent):
+def fmt_big(n):
+    """Format large numbers as $1.4T / $230B / $5M."""
+    if not isinstance(n, (int, float)):
+        return None
+    n = float(n)
+    if n >= 1e12:
+        return f"${n / 1e12:.1f}T"
+    if n >= 1e9:
+        return f"${n / 1e9:.1f}B"
+    if n >= 1e6:
+        return f"${n / 1e6:.0f}M"
+    return f"${n:,.0f}"
+
+
+def stars_html(confidence, max_scouts):
+    if not isinstance(confidence, (int, float)) or confidence < 0:
+        return ""
+    filled = int(round(confidence))
+    empty = max(0, max_scouts - filled)
+    return (
+        f'<span class="stars">'
+        f'<span class="star-filled">{"★" * filled}</span>'
+        f'<span class="star-empty">{"☆" * empty}</span>'
+        f' <span class="stars-label">{filled} of {max_scouts} scouts</span>'
+        f'</span>'
+    )
+
+
+def pick_html(p, skill_type, accent, max_scouts):
     rank = p.get("rank", "?")
     ticker = p.get("ticker", "?")
     ptype = p.get("type", "")
@@ -73,11 +101,44 @@ def pick_html(p, skill_type, accent):
     bear = html.escape(p.get("bear_case", ""))
     watch = html.escape(p.get("watch_next", ""))
 
+    confidence = p.get("confidence_scouts")
+    top_tick = p.get("top_tick_warning")
+    trail = p.get("trailing_return_pct")
+    fund_note = p.get("fundamentals_note", "")
+    pe = p.get("pe_trailing")
+    mcap = p.get("market_cap")
+    sector = p.get("sector", "")
+
     price_str = f"${price:,.2f}" if price else "N/A"
     alloc_str = f"${alloc:,.2f}" if alloc else ""
     shares_str = f"{whole} whole shares" if whole else (f"{frac} fractional shares" if frac else "")
     if shares_str and price:
         shares_str += f" @ {price_str}"
+
+    stars = stars_html(confidence, max_scouts) if confidence is not None else ""
+
+    warning_html = ""
+    if top_tick and isinstance(trail, (int, float)):
+        warning_html = (
+            f'<div class="top-tick-warning">⚠ Trailing 1-month +{trail:.1f}% — '
+            f'late-entry risk, this is a momentum top-tick setup, not a fresh signal</div>'
+        )
+
+    fund_chips = []
+    if isinstance(pe, (int, float)):
+        fund_chips.append(f'<span class="fund-chip">PE <b>{pe:.1f}</b></span>')
+    mcap_str = fmt_big(mcap)
+    if mcap_str:
+        fund_chips.append(f'<span class="fund-chip">Cap <b>{mcap_str}</b></span>')
+    if sector:
+        fund_chips.append(f'<span class="fund-chip">{html.escape(sector)}</span>')
+    fund_chips_html = f'<div class="fund-row">{"".join(fund_chips)}</div>' if fund_chips else ""
+
+    fund_note_html = ""
+    if fund_note and "Full" not in fund_note:
+        fund_note_html = (
+            f'<div class="fund-note">⚠ Fundamentals: {html.escape(fund_note)}</div>'
+        )
 
     extra = ""
     if skill_type == "contrarian" and "checklist" in p:
@@ -112,13 +173,16 @@ def pick_html(p, skill_type, accent):
       <span class="rank-num" style="color:{accent}">#{rank}</span>
       <span class="ticker">{ticker}</span>
       <span class="pick-type">{ptype}</span>
+      {stars}
     </div>
     <div class="pick-right">
       <div class="pick-alloc" style="color:{accent}">{alloc_str}</div>
       <div class="pick-shares">{shares_str}</div>
     </div>
   </div>
+  {warning_html}
   {extra}
+  {fund_chips_html}
   <div class="field why-now">
     <div class="field-label">Why now</div>
     <div class="field-value">{why}</div>
@@ -130,7 +194,8 @@ def pick_html(p, skill_type, accent):
     </div>
     {"<div class='field'><div class='field-label'>Catalyst freshness</div><div class='freshness-pill'>~"+str(fresh)+" days</div></div>" if fresh else ""}
   </div>
-  {"<div class='field'><div class='field-label'>Fundamentals</div><div class='field-value muted'>"+fund+"</div></div>" if fund else ""}
+  {"<div class='field'><div class='field-label'>Fundamentals (qualitative)</div><div class='field-value muted'>"+fund+"</div></div>" if fund else ""}
+  {fund_note_html}
   <div class="field bear-case">
     <div class="field-label">Bear case</div>
     <div class="field-value">{bear}</div>
@@ -161,7 +226,16 @@ def render(data):
     skill_label = skill_name.replace("invest-", "").upper()
     title = f"{skill_label} PICKS — ${amount:,.0f}"
 
-    picks_html = "\n".join(pick_html(p, skill_type, accent) for p in picks)
+    max_scouts = data.get("max_scouts")
+    if not isinstance(max_scouts, int) or max_scouts <= 0:
+        seen = [
+            p.get("confidence_scouts", 0)
+            for p in picks
+            if isinstance(p.get("confidence_scouts"), (int, float))
+        ]
+        max_scouts = max(seen) if seen else 4
+
+    picks_html = "\n".join(pick_html(p, skill_type, accent, max_scouts) for p in picks)
 
     runners_html = ""
     if runners:
@@ -202,6 +276,15 @@ def render(data):
   .why-now .field-value {{ color: #3fb950; }}
   .bear-case .field-value {{ color: #f85149; }}
   .freshness-pill {{ display: inline-block; background: {accent_dim}; color: {accent}; border: 1px solid {accent}30; padding: 2px 10px; border-radius: 10px; font-size: 12px; }}
+  .stars {{ display: inline-block; margin-left: 10px; font-size: 13px; vertical-align: middle; }}
+  .star-filled {{ color: {accent}; letter-spacing: 1px; }}
+  .star-empty {{ color: #30363d; letter-spacing: 1px; }}
+  .stars-label {{ color: #6e7681; font-size: 11px; margin-left: 4px; }}
+  .top-tick-warning {{ background: #2d1505; border: 1px solid #f8514950; color: #f85149; padding: 8px 12px; border-radius: 6px; font-size: 12px; margin-bottom: 12px; }}
+  .fund-row {{ display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }}
+  .fund-chip {{ background: #0d1117; border: 1px solid #30363d; color: #8b949e; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-family: ui-monospace, Consolas, monospace; }}
+  .fund-chip b {{ color: #c9d1d9; font-weight: 600; }}
+  .fund-note {{ background: #161b22; border-left: 3px solid #d29922; color: #d29922; padding: 6px 12px; border-radius: 0 4px 4px 0; font-size: 11px; margin-bottom: 10px; }}
   .checklist {{ background: #0d1117; border: 1px solid #21262d; border-radius: 6px; padding: 10px 14px; margin-bottom: 12px; }}
   .cl-score {{ font-size: 15px; font-weight: 700; margin-bottom: 6px; }}
   .cl-row {{ display: flex; justify-content: space-between; font-size: 12px; padding: 2px 0; border-bottom: 1px solid #21262d; }}
@@ -277,9 +360,9 @@ def main():
     out_path = os.path.join(reports_dir, out_name)
     json_path = os.path.join(reports_dir, f"{ts_file}-{skill_name}.json")
 
-    with open(out_path, "w") as f:
+    with open(out_path, "w", encoding="utf-8") as f:
         f.write(render(data))
-    with open(json_path, "w") as f:
+    with open(json_path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
 
     print(out_path)

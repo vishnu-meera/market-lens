@@ -23,3 +23,23 @@ ENV/
 
 # Local settings
 .claude/settings.local.json
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Python linter / type-checker caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Ad-hoc analyst dump files in repo root (orchestrate.md routes these to /tmp instead).
+# Add new patterns here if a script ever drops scratch output at the root.
+/t_*.html
+/tt_*.html
+/cluster.html
